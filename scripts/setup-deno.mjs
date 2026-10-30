@@ -1,0 +1,12 @@
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import { createHash } from 'node:crypto';
+import { spawnSync } from 'node:child_process';
+const api = await fetch('https://api.github.com/repos/denoland/deno/releases/latest', { headers: { 'User-Agent': 'ConvertMp3-build' } }); if (!api.ok) throw new Error('Cannot query Deno release');
+const release = await api.json(); const asset = release.assets.find(a => a.name === 'deno-x86_64-pc-windows-msvc.zip');
+const response = await fetch(asset.browser_download_url); if (!response.ok) throw new Error('Cannot download Deno'); const data = Buffer.from(await response.arrayBuffer());
+const digest = createHash('sha256').update(data).digest('hex'); if (asset.digest?.startsWith('sha256:') && asset.digest.slice(7) !== digest) throw new Error('Deno checksum mismatch');
+const root = path.resolve('resources/bin'); const zip = path.join(root, 'deno.zip'); await fs.writeFile(zip, data);
+const result = spawnSync('powershell.exe', ['-NoProfile', '-Command', 'Expand-Archive -LiteralPath $env:CONVERT_ZIP -DestinationPath $env:CONVERT_BIN -Force'], { env: { ...process.env, CONVERT_ZIP: zip, CONVERT_BIN: root }, windowsHide: true, stdio: 'inherit' }); if (result.status) throw new Error('Cannot extract Deno');
+await fs.rm(zip); await fs.writeFile('resources/licenses/deno-source.json', JSON.stringify({ version: release.tag_name, source: `https://github.com/denoland/deno/tree/${release.tag_name}`, sha256: digest }, null, 2));
+const license = await fetch(`https://raw.githubusercontent.com/denoland/deno/${release.tag_name}/LICENSE.md`); if (!license.ok) throw new Error('Cannot fetch Deno license'); await fs.writeFile('resources/licenses/deno-LICENSE.txt', await license.text()); console.log('Deno ready for yt-dlp JavaScript support.');

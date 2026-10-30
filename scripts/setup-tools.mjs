@@ -1,0 +1,25 @@
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import { createHash } from 'node:crypto';
+import { spawnSync } from 'node:child_process';
+const root = path.resolve('resources/bin'); await fs.mkdir(root, { recursive: true }); await fs.mkdir('resources/licenses', { recursive: true });
+async function download(url, file) { console.log(`Downloading ${url}`); const res = await fetch(url, { headers: { 'User-Agent': 'ConvertMp3-build' } }); if (!res.ok) throw new Error(`HTTP ${res.status}: ${url}`); const bytes = Buffer.from(await res.arrayBuffer()); await fs.writeFile(file, bytes); return bytes; }
+const api = await fetch('https://api.github.com/repos/yt-dlp/yt-dlp/releases/latest', { headers: { 'User-Agent': 'ConvertMp3-build' } }); if (!api.ok) throw new Error('Cannot query yt-dlp release'); const release = await api.json();
+const exe = release.assets.find(a => a.name === 'yt-dlp.exe');
+const bytes = await download(exe.browser_download_url, path.join(root, 'yt-dlp.exe'));
+const sums = await download(release.assets.find(a => a.name === 'SHA2-256SUMS').browser_download_url, path.join(root, 'SHA2-256SUMS'));
+const expected = sums.toString().split('\n').find(line => /\s\*?yt-dlp\.exe$/.test(line.trim()))?.split(/\s+/)[0];
+if (!expected || createHash('sha256').update(bytes).digest('hex') !== expected) throw new Error('yt-dlp checksum mismatch');
+const ffApi = await fetch('https://api.github.com/repos/BtbN/FFmpeg-Builds/releases/latest', { headers: { 'User-Agent': 'ConvertMp3-build' } }); const ffRelease = await ffApi.json();
+const asset = ffRelease.assets.find(a => /win64-lgpl\.zip$/.test(a.name)); if (!asset) throw new Error('FFmpeg win64 LGPL archive not found');
+const zip = path.join(root, 'ffmpeg.zip'); const ffBytes = await download(asset.browser_download_url, zip);
+if (asset.digest?.startsWith('sha256:') && createHash('sha256').update(ffBytes).digest('hex') !== asset.digest.slice(7)) throw new Error('FFmpeg checksum mismatch');
+const unpack = path.join(root, 'unpacked');
+const result = spawnSync('powershell.exe', ['-NoProfile', '-Command', 'Expand-Archive -LiteralPath $env:CONVERT_ZIP -DestinationPath $env:CONVERT_UNPACK -Force'], { env: { ...process.env, CONVERT_ZIP: zip, CONVERT_UNPACK: unpack }, windowsHide: true, stdio: 'inherit' }); if (result.status) throw new Error('Cannot extract FFmpeg');
+const [folder] = await fs.readdir(unpack); for (const name of ['ffmpeg.exe', 'ffprobe.exe']) await fs.copyFile(path.join(unpack, folder, 'bin', name), path.join(root, name));
+const sourceRoot = path.join(unpack, folder);
+await fs.cp(sourceRoot, 'resources/licenses/ffmpeg-distribution', { recursive: true, filter: source => !path.relative(sourceRoot, source).split(path.sep).includes('bin') });
+await fs.writeFile('resources/licenses/tool-sources.json', JSON.stringify({ ytdlp: { version: release.tag_name, url: exe.browser_download_url, source: `https://github.com/yt-dlp/yt-dlp/tree/${release.tag_name}`, sha256: expected }, ffmpeg: { version: ffRelease.tag_name, url: asset.browser_download_url, source: 'https://github.com/BtbN/FFmpeg-Builds', sha256: createHash('sha256').update(ffBytes).digest('hex') } }, null, 2));
+await download('https://raw.githubusercontent.com/yt-dlp/yt-dlp/master/LICENSE', 'resources/licenses/yt-dlp-LICENSE.txt');
+await fs.rm(unpack, { recursive: true, force: true }); await fs.rm(zip); console.log('yt-dlp, FFmpeg and ffprobe are ready.');
+await import('./setup-deno.mjs');

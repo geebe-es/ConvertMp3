@@ -1,0 +1,14 @@
+import sharp from 'sharp';
+import fs from 'node:fs/promises';
+const symbol = '<path d="M70 24a34 34 0 1 0 0 52" fill="none" stroke="#20d990" stroke-width="9" stroke-linecap="round"/><path d="M39 45v14m11-24v34m11-28v22m11-12v17m-8-6 8 8 8-8" fill="none" stroke="#20d990" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>';
+const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">${symbol}</svg>`;
+const square = `<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 100 100"><rect width="100" height="100" rx="24" fill="#101b19"/>${symbol}</svg>`;
+await fs.mkdir('src/assets', { recursive: true }); await fs.mkdir('resources', { recursive: true });
+await fs.writeFile('resources/logo.svg', svg); await fs.writeFile('src/assets/logo.svg', svg);
+await fs.writeFile('resources/logo-full.svg', `<svg xmlns="http://www.w3.org/2000/svg" width="520" height="100" viewBox="0 0 520 100">${symbol}<text x="112" y="65" font-family="Segoe UI,Arial" font-weight="700" font-size="48" fill="#7a8b85">Convert<tspan fill="#20b881">Mp3</tspan></text></svg>`);
+await sharp(Buffer.from(svg)).resize(512).png().toFile('resources/logo-transparent.png');
+await sharp('resources/logo-full.svg').png().toFile('resources/logo-full.png');
+await sharp(Buffer.from(square)).resize(256).png().toFile('resources/icon.png');
+const png = await sharp(Buffer.from(square)).resize(256).png().toBuffer();
+const header = Buffer.alloc(22); header.writeUInt16LE(1, 2); header.writeUInt16LE(1, 4); header[6] = 0; header[7] = 0; header.writeUInt16LE(1, 10); header.writeUInt16LE(32, 12); header.writeUInt32LE(png.length, 14); header.writeUInt32LE(22, 18);
+await fs.writeFile('resources/icon.ico', Buffer.concat([header, png]));

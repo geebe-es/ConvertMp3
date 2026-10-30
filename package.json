@@ -1,0 +1,92 @@
+{
+  "name": "convertmp3",
+  "productName": "ConvertMp3",
+  "version": "1.0.4",
+  "description": "Conversor e gerenciador de áudio desktop",
+  "author": "ConvertMp3",
+  "license": "MIT",
+  "main": "dist-electron/main.cjs",
+  "type": "module",
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "typecheck": "tsc --noEmit",
+    "build": "npm run typecheck && vite build && node scripts/build-electron.mjs",
+    "start": "electron .",
+    "test": "tsx --test tests/*.test.ts",
+    "assets": "node scripts/assets.mjs",
+    "setup:tools": "node scripts/setup-tools.mjs",
+    "dist": "npm run dist:win",
+    "dist:win": "npm run build && electron-builder --win nsis portable --x64",
+    "test:desktop": "node scripts/smoke.mjs"
+  },
+  "dependencies": {
+    "electron-updater": "^6.8.3",
+    "lucide-react": "^0.577.0",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.2.1",
+    "@types/node": "^24.0.0",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "@vitejs/plugin-react": "latest",
+    "electron": "44.4.5",
+    "electron-builder": "26.15.3",
+    "esbuild": "^0.28.2",
+    "playwright": "latest",
+    "sharp": "^0.35.5",
+    "tailwindcss": "^4.2.1",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3",
+    "vite": "8.3.1"
+  },
+  "build": {
+    "appId": "com.convertmp3.desktop",
+    "productName": "ConvertMp3",
+    "directories": {
+      "output": "release",
+      "buildResources": "resources"
+    },
+    "files": [
+      "dist/**/*",
+      "dist-electron/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "resources/bin",
+        "to": "bin"
+      },
+      {
+        "from": "resources/icon.png",
+        "to": "icon.png"
+      },
+      {
+        "from": "resources/licenses",
+        "to": "licenses"
+      }
+    ],
+    "win": {
+      "icon": "resources/icon.ico",
+      "target": [
+        "nsis",
+        "portable"
+      ],
+      "signAndEditExecutable": true
+    },
+    "nsis": {
+      "perMachine": true,
+      "allowElevation": true,
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "artifactName": "ConvertMp3-Setup.exe"
+    },
+    "portable": {
+      "artifactName": "ConvertMp3-Portable.exe"
+    }
+  }
+}
