@@ -1,0 +1,9 @@
+node_modules/
+dist/
+dist-electron/
+release/
+resources/bin/*
+!resources/bin/.gitkeep
+.test-data/
+test-results/
+*.log
